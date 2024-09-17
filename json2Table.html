@@ -1,103 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic JSON to Table</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON2Table</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <style>
-        table {
-            border-collapse: collapse;
-            width: 80%;
-            margin: 20px;
-        }
+      table {
+        border-collapse: collapse;
+        width: 80%;
+        margin: 20px;
+      }
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
 
-        th {
-            background-color: #f2f2f2;
-        }
+      th {
+        background-color: #f2f2f2;
+      }
 
-        #json-input {
-            width: 60%;
-            padding: 5px;
-            margin: 10px;
-        }
+      td.editable {
+        cursor: pointer;
+      }
 
-        #json-button {
-            padding: 8px;
-            margin: 10px;
-            cursor: pointer;
-        }
+      td.editable:hover {
+        background-color: #f0f0f0;
+      }
+
+      #json-input-container {
+        display: flex;
+        align-items: center;
+        margin: 10px;
+      }
+
+      #json-input {
+        width: 60%;
+        padding: 5px;
+        margin: 10px;
+      }
+
+      #json-select {
+        margin: 10px;
+      }
+
+      #json-button {
+        padding: 8px;
+        margin: 10px;
+        cursor: pointer;
+      }
+
+      #download-json-button {
+        padding: 8px;
+        margin: 10px;
+        cursor: pointer;
+      }
+
+      #download-excel-button {
+        padding: 8px;
+        margin: 10px;
+        cursor: pointer;
+      }
+
+      #loading {
+        display: none;
+      }
+
+      .edit-input {
+        width: 80%;
+      }
+
+      .pd-6 {
+        padding: 6px;
+      }
+
+      .input-search {
+        color: black;
+        padding: 5px;
+        margin: 10px;
+        width: 10%;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <h1>Dynamic JSON to Editable Table and Search Option</h1>
 
-    <h1>Dynamic JSON to Table</h1>
+    <!-- <div id="json-input-container">
+        <input type="text" id="json-input" placeholder="Enter or select JSON data link"> -->
+    <label for="json-select">Select a JSON link:</label>
+    <select id="json-select">
+      <option>Select</option>
+      <option value="https://demodpd.kore.ai/sbaccounts">Account Data</option>
+      <option value="https://demodpd.kore.ai/sbcustomers">Customer Data</option>
+      <option value="https://demodpd.kore.ai/sbtransactions">
+        Transaction Data
+      </option>
+      <option value="https://demodpd.kore.ai/sblimits">Limit Data</option>
+      <!-- Add more options as needed -->
+    </select>
 
-    <input type="text" id="json-input" placeholder="Enter JSON data link">
-    <button id="json-button" onclick="fetchAndCreateTable()">Create Table</button>
+    <input type="text" id="json-input" placeholder="Or enter JSON data link" />
+    <button id="json-button" onclick="fetchAndCreateTable()">
+      Create Table
+    </button>
+
+    <button id="download-json-button" onclick="downloadJSON()">
+      Download JSON
+    </button>
+    <button id="download-excel-button" onclick="downloadExcel()">
+      Download Excel
+    </button>
+
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Search..."
+      class="input-search"
+      oninput="handleInputChange()"
+    />
+    <button onclick="handleInputChange();" class="pd-6">🔎</button>
+    <button
+      onclick="document.getElementById('searchInput').value=''; handleInputChange();"
+      class="pd-6"
+    >
+      ✖
+    </button>
 
     <div id="table-container"></div>
+    <div id="loading">Loading...</div>
 
     <script>
-        // Function to fetch JSON data and create a table
-        async function fetchAndCreateTable() {
-            var jsonLink = document.getElementById("json-input").value;
+      let originalData = [];
 
-            try {
-                var response = await fetch(jsonLink);
+      async function fetchAndCreateTable() {
+        var jsonLink =
+          document.getElementById("json-input").value ||
+          document.getElementById("json-select").value;
+        var loadingIndicator = document.getElementById("loading");
 
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch JSON (${response.status} ${response.statusText})`);
-                }
+        try {
+          loadingIndicator.style.display = "block";
 
-                var jsonData = await response.json();
+          var response = await fetch(jsonLink);
 
-                var tableContainer = document.getElementById("table-container");
-                tableContainer.innerHTML = ''; // Clear previous content
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch JSON (${response.status} ${response.statusText})`
+            );
+          }
 
-                var table = document.createElement("table");
+          originalData = await response.json();
+          createTable(originalData);
+        } catch (error) {
+          alert(`Error: ${error.message}`);
+        } finally {
+          loadingIndicator.style.display = "none";
+        }
+      }
 
-                // Create table header
-                var thead = document.createElement("thead");
-                var headerRow = document.createElement("tr");
+      function createTable(data) {
+        var tableContainer = document.getElementById("table-container");
+        tableContainer.innerHTML = "";
 
-                for (var key in jsonData[0]) {
-                    var th = document.createElement("th");
-                    th.textContent = key;
-                    headerRow.appendChild(th);
-                }
+        var table = document.createElement("table");
 
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
+        var thead = document.createElement("thead");
+        var headerRow = document.createElement("tr");
 
-                // Create table body
-                var tbody = document.createElement("tbody");
+        var idTh = document.createElement("th");
+        idTh.textContent = "id";
+        headerRow.appendChild(idTh);
 
-                jsonData.forEach(function (item) {
-                    var row = document.createElement("tr");
+        var uniqueKeys = new Set();
 
-                    for (var key in item) {
-                        var cell = document.createElement("td");
-                        cell.textContent = item[key];
-                        row.appendChild(cell);
-                    }
+        data.forEach(function (item) {
+          for (var key in item) {
+            uniqueKeys.add(key);
+          }
+        });
 
-                    tbody.appendChild(row);
+        uniqueKeys.forEach(function (key) {
+          if (key !== "id") {
+            var th = document.createElement("th");
+            th.textContent = key;
+            headerRow.appendChild(th);
+          }
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        var tbody = document.createElement("tbody");
+
+        data.forEach(function (item) {
+          var row = document.createElement("tr");
+
+          var idCell = document.createElement("td");
+          idCell.textContent = item.id;
+          row.appendChild(idCell);
+
+          uniqueKeys.forEach(function (key) {
+            if (key !== "id") {
+              var cell = document.createElement("td");
+              cell.textContent =
+                typeof item[key] === "object"
+                  ? item[key] !== null
+                    ? JSON.stringify(item[key])
+                    : ""
+                  : item[key] !== null
+                  ? item[key]
+                  : "";
+              cell.classList.add("editable");
+              cell.setAttribute("contenteditable", "true");
+              row.appendChild(cell);
+
+              (function (currentKey) {
+                cell.addEventListener("input", function () {
+                  item[currentKey] = cell.textContent;
                 });
 
-                table.appendChild(tbody);
-
-                tableContainer.appendChild(table);
-            } catch (error) {
-                alert(`Error: ${error.message}`);
+                cell.addEventListener("keydown", function (event) {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    var editedColumn = currentKey;
+                    triggerApi(item, editedColumn, jsonLink);
+                  }
+                });
+              })(key);
             }
+          });
+
+          tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+
+        tableContainer.appendChild(table);
+      }
+
+      async function triggerApi(data, editedColumn, link) {
+        var endIndex = link.indexOf("/?c");
+        var url = endIndex !== -1 ? link.substring(0, endIndex) : link;
+        var apiEndpoint = url;
+
+        try {
+          var updatedData = {
+            id: data.id,
+          };
+
+          updatedData[editedColumn] = data[editedColumn];
+
+          var response = await fetch(apiEndpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updatedData),
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to update data (${response.status} ${response.statusText})`
+            );
+          }
+
+          alert("Data updated successfully!");
+        } catch (error) {
+                alert(`Error updating data: ${error.message}`);
         }
+      }
+
+      function handleInputChange() {
+        var searchValue = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        var filteredData = originalData.filter(function (item) {
+          return Object.values(item).some(function (value) {
+            return (
+              value !== null &&
+              value.toString().toLowerCase().includes(searchValue)
+            );
+          });
+        });
+
+        createTable(filteredData);
+      }
+
+      function downloadJSON() {
+        var jsonData = [];
+
+        // Collect the displayed data from the table based on search results
+        var rows = document.querySelectorAll("tbody tr");
+        rows.forEach(function (row) {
+          var rowData = {
+            id: row.querySelector("td").textContent,
+          };
+
+          var cells = row.querySelectorAll("td.editable");
+          cells.forEach(function (cell, index) {
+            var key = document.querySelector("thead tr").querySelectorAll("th")[
+              index + 1
+            ].textContent;
+            var value = cell.textContent;
+            rowData[key] = value;
+          });
+
+          jsonData.push(rowData);
+        });
+
+        // Create a Blob and download the JSON file
+        var blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+          type: "application/json",
+        });
+        var url = window.URL.createObjectURL(blob);
+
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "table_data.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+
+      function downloadExcel() {
+        var jsonData = [];
+
+        // Collect the displayed data from the table based on search results
+        var rows = document.querySelectorAll("tbody tr");
+        rows.forEach(function (row) {
+          var rowData = [row.querySelector("td").textContent];
+
+          var cells = row.querySelectorAll("td.editable");
+          cells.forEach(function (cell) {
+            rowData.push(cell.textContent);
+          });
+
+          jsonData.push(rowData);
+        });
+
+        // Get column names from the table header
+        var columnNames = [];
+        var headerCells = document.querySelectorAll("thead th");
+        headerCells.forEach(function (headerCell) {
+          columnNames.push(headerCell.textContent);
+        });
+
+        // Add column names as the first row in the data
+        jsonData.unshift(columnNames);
+
+        // Create a worksheet
+        var ws = XLSX.utils.aoa_to_sheet(jsonData);
+
+        // Create a workbook
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "data");
+
+        // Generate binary data
+        var excelBinaryData = XLSX.write(wb, {
+          bookType: "xlsx",
+          bookSST: true,
+          type: "binary",
+        });
+
+        // Convert binary string to Uint8Array
+        var uint8Array = new Uint8Array(excelBinaryData.length);
+        for (var i = 0; i < excelBinaryData.length; i++) {
+          uint8Array[i] = excelBinaryData.charCodeAt(i) & 0xff;
+        }
+
+        // Create a Blob and download the Excel file
+        var blob = new Blob([uint8Array], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        var url = window.URL.createObjectURL(blob);
+
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "table_data.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
     </script>
 
-</body>
+  </body>
 </html>
