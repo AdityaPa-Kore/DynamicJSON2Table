@@ -1,6 +1,6 @@
 I have built a website where we can use demodpd data (which is in json format) in table format and edit data here. The plus point over regular demodpd table is that this loads at once and doesn't need to scroll for loading data
 
-website link : Dynamic JSON to Editable Table (adityaroshanpatro.github.io)
+website link : [Dynamic JSON to Editable Table (adityaroshanpatro.github.io)](https://adityaroshanpatro.github.io/DynamicJSON2Table/json2Table)
 
 example of link to add 
 https://demodpd.kore.ai/sbaccounts/?customerId=1045304  - for particular user
